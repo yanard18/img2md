@@ -1,5 +1,6 @@
 import cv2
 import os
+import sys
 
 def extract_sub_images(screenshot_path, output_dir="extracted_images", min_area=10000):
     if not os.path.exists(output_dir):
@@ -30,3 +31,8 @@ def extract_sub_images(screenshot_path, output_dir="extracted_images", min_area=
             extracted_count += 1
 
     print(f"Extraction complete. Found {extracted_count} embedded images.")
+
+
+if __name__ == "__main__":
+	extract_sub_images(sys.argv[1])
+
