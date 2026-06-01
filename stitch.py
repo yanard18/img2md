@@ -26,7 +26,19 @@ def find_overlap(img1, img2):
     return overlap, float(max_val)
 
 
-def stitch_progressively(folder_path, roi=None, output_path="stitched_result.png", min_confidence=0.5):
+def upscale_and_sharpen(img, scale=2.0, sharpen_strength=1.5):
+    if scale != 1.0:
+        new_w = int(img.shape[1] * scale)
+        new_h = int(img.shape[0] * scale)
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+    if sharpen_strength > 0:
+        blurred = cv2.GaussianBlur(img, (0, 0), 2)
+        img = cv2.addWeighted(img, 1 + sharpen_strength, blurred, -sharpen_strength, 0)
+    return img
+
+
+def stitch_progressively(folder_path, roi=None, output_path="stitched_result.png",
+                         min_confidence=0.5, scale=2.0, sharpen_strength=1.5):
     valid_files = sorted(
         f for f in os.listdir(folder_path)
         if f.lower().endswith(('.png', '.jpg', '.jpeg'))
@@ -91,14 +103,21 @@ def stitch_progressively(folder_path, roi=None, output_path="stitched_result.png
         base = base[y:]
         print(f"Vertical crop applied from y={y}. Final height: {base.shape[0]}px")
 
+    base = upscale_and_sharpen(base, scale=scale, sharpen_strength=sharpen_strength)
+    print(f"Post-processing: scale={scale}x, sharpen={sharpen_strength} → {base.shape[1]}x{base.shape[0]}px")
+
     cv2.imwrite(output_path, base)
     print(f"Saved to: {output_path}")
     return base
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python stitch.py <folder_path> [output_path]")
-    else:
-        out = sys.argv[2] if len(sys.argv) > 2 else "stitched_result.png"
-        stitch_progressively(sys.argv[1], output_path=out)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("folder_path")
+    parser.add_argument("output_path", nargs="?", default="stitched_result.png")
+    parser.add_argument("--scale", type=float, default=2.0, help="Upscale factor (default: 2.0)")
+    parser.add_argument("--sharpen", type=float, default=1.5, help="Sharpen strength (default: 1.5, 0 to disable)")
+    args = parser.parse_args()
+    stitch_progressively(args.folder_path, output_path=args.output_path,
+                         scale=args.scale, sharpen_strength=args.sharpen)
